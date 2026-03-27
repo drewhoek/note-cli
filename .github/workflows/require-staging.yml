@@ -1,0 +1,21 @@
+name: Require staging source
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-source-branch:
+    name: check-source-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PR source is staging
+        run: |
+          if [ "${{ github.event.pull_request.head.ref }}" != "staging" ]; then
+            echo "❌ PRs to main must come from staging."
+            echo "   Source branch: ${{ github.event.pull_request.head.ref }}"
+            echo "   If this is a hotfix, a bypass actor can merge via the GitHub UI."
+            exit 1
+          fi
+          echo "✅ Source branch is staging."
