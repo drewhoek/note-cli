@@ -1,6 +1,6 @@
 # note-cli
 
-A Go CLI tool that bridges Claude Code and a local Obsidian vault. The vault is a folder of markdown files on disk. Claude Code can use this tool autonomously — once the skill is installed, no user confirmation is needed before reading or writing notes.
+A Go CLI tool that bridges Claude Code and a local Obsidian vault. The vault is a folder of Markdown files on disk. Claude Code can use this tool autonomously — once the skill is installed, no user confirmation is needed before reading or writing notes.
 
 ## Build & run
 
@@ -11,14 +11,14 @@ go run main.go <command>
 
 ## Command reference
 
-| Command | Usage | Description |
-|---|---|---|
-| `new` | `note new <title>` | Creates a new markdown note with frontmatter (date, tags) |
-| `append` | `note append <title> <content>` | Appends content to an existing note |
-| `read` | `note read <title>` | Outputs a note's content to stdout |
-| `search` | `note search <query>` | Fuzzy searches note titles and content |
-| `list` | `note list [--tag <tag>]` | Lists notes, optionally filtered by tag |
-| `open` | `note open <title>` | Opens the note in Obsidian via `obsidian://` URI scheme |
+| Command         | Usage                           | Description                                                     |
+|-----------------|---------------------------------|-----------------------------------------------------------------|
+| `new`           | `note new <title>`              | Creates a new markdown note with frontmatter (date, tags)       |
+| `append`        | `note append <title> <content>` | Appends content to an existing note                             |
+| `read`          | `note read <title>`             | Outputs a note's content to stdout                              |
+| `search`        | `note search <query>`           | Fuzzy searches note titles and content                          |
+| `list`          | `note list [--tag <tag>]`       | Lists notes, optionally filtered by tag                         |
+| `open`          | `note open <title>`             | Opens the note in Obsidian via `obsidian://` URI scheme         |
 | `install-skill` | `note install-skill [--global]` | Generates a skill file teaching Claude Code how to use this CLI |
 
 ### install-skill modes
