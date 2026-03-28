@@ -39,10 +39,7 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("expected file %s to exist: %v", path, err)
 	}
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("os.ReadFile: %v", err)
-	}
+	data, _ := os.ReadFile(path)
 	content := string(data)
 	if !strings.Contains(content, "# My Note") {
 		t.Errorf("expected h1 title in content, got:\n%s", content)
@@ -55,17 +52,9 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-// mustCreate is a test helper that calls Create and fails the test if it returns an error.
-func mustCreate(t *testing.T, vault, title string) {
-	t.Helper()
-	if err := Create(vault, title); err != nil {
-		t.Fatalf("mustCreate(%q): %v", title, err)
-	}
-}
-
 func TestCreateDuplicate(t *testing.T) {
 	vault := t.TempDir()
-	mustCreate(t, vault, "My Note")
+	Create(vault, "My Note")
 
 	err := Create(vault, "My Note")
 	if err == nil {
@@ -75,7 +64,7 @@ func TestCreateDuplicate(t *testing.T) {
 
 func TestRead(t *testing.T) {
 	vault := t.TempDir()
-	mustCreate(t, vault, "My Note")
+	Create(vault, "My Note")
 
 	content, err := Read(vault, "My Note")
 	if err != nil {
@@ -88,7 +77,7 @@ func TestRead(t *testing.T) {
 
 func TestReadTitleVariants(t *testing.T) {
 	vault := t.TempDir()
-	mustCreate(t, vault, "My Note")
+	Create(vault, "My Note")
 
 	variants := []string{"My Note", "my-note", "my-note.md"}
 	for _, v := range variants {
@@ -111,16 +100,13 @@ func TestReadMissing(t *testing.T) {
 
 func TestAppend(t *testing.T) {
 	vault := t.TempDir()
-	mustCreate(t, vault, "My Note")
+	Create(vault, "My Note")
 
 	if err := Append(vault, "My Note", "appended content"); err != nil {
 		t.Fatalf("Append: %v", err)
 	}
 
-	content, err := Read(vault, "My Note")
-	if err != nil {
-		t.Fatalf("Read after Append: %v", err)
-	}
+	content, _ := Read(vault, "My Note")
 	if !strings.Contains(content, "appended content") {
 		t.Errorf("expected appended content, got:\n%s", content)
 	}

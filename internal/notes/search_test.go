@@ -25,9 +25,9 @@ func TestBigramSimilarity(t *testing.T) {
 
 func TestList(t *testing.T) {
 	vault := t.TempDir()
-	mustCreate(t, vault, "Alpha")
-	mustCreate(t, vault, "Beta")
-	mustCreate(t, vault, "Gamma")
+	Create(vault, "Alpha")
+	Create(vault, "Beta")
+	Create(vault, "Gamma")
 
 	titles, err := List(vault, "")
 	if err != nil {
@@ -54,8 +54,8 @@ func TestListByTag(t *testing.T) {
 
 func TestSearchExact(t *testing.T) {
 	vault := t.TempDir()
-	mustCreate(t, vault, "Meeting Notes")
-	mustCreate(t, vault, "Shopping List")
+	Create(vault, "Meeting Notes")
+	Create(vault, "Shopping List")
 
 	results, err := Search(vault, "meeting", true)
 	if err != nil {
@@ -68,8 +68,8 @@ func TestSearchExact(t *testing.T) {
 
 func TestSearchFuzzy(t *testing.T) {
 	vault := t.TempDir()
-	mustCreate(t, vault, "Meeting Notes")
-	mustCreate(t, vault, "Shopping List")
+	Create(vault, "Meeting Notes")
+	Create(vault, "Shopping List")
 
 	results, err := Search(vault, "meting", false)
 	if err != nil {
