@@ -24,13 +24,27 @@ func resolvePath(vaultPath, title string) string {
 	return filepath.Join(vaultPath, Slug(title)+".md")
 }
 
-// Create creates a new note with YAML frontmatter. Returns an error if the note already exists.
+// ErrNoteExists is returned by Create and CreateDaily when the note file already exists.
+var ErrNoteExists = errors.New("note already exists")
+
+// Create creates a new note with YAML frontmatter. Returns ErrNoteExists if the note already exists.
 func Create(vaultPath, title string) error {
 	path := resolvePath(vaultPath, title)
 	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("note %q already exists", title)
+		return fmt.Errorf("%w: %q", ErrNoteExists, title)
 	}
 	content := fmt.Sprintf("---\ndate: %s\ntags: []\n---\n\n# %s\n",
+		time.Now().Format("2006-01-02"), title)
+	return os.WriteFile(path, []byte(content), 0644)
+}
+
+// CreateDaily creates a daily note with a richer template. Returns ErrNoteExists if it already exists.
+func CreateDaily(vaultPath, title string) error {
+	path := resolvePath(vaultPath, title)
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("%w: %q", ErrNoteExists, title)
+	}
+	content := fmt.Sprintf("---\ndate: %s\ntags: [daily]\n---\n\n# %s\n\n## Notes\n\n## Tasks\n",
 		time.Now().Format("2006-01-02"), title)
 	return os.WriteFile(path, []byte(content), 0644)
 }
