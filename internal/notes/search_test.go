@@ -80,6 +80,21 @@ func TestSearchFuzzy(t *testing.T) {
 	}
 }
 
+func TestOutlinks(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Source")
+	if err := Append(vault, "Source", "See [[Target A]] and [[target-b]]."); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	links, err := Outlinks(vault, "Source")
+	if err != nil {
+		t.Fatalf("Outlinks: %v", err)
+	}
+	if len(links) != 2 {
+		t.Errorf("Outlinks = %v, want 2 results", links)
+	}
+}
+
 func writeNoteWithTag(t *testing.T, vault, slug, tag string) {
 	t.Helper()
 	path := vault + "/" + slug + ".md"
