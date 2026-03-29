@@ -239,3 +239,32 @@ func TestSetStatus(t *testing.T) {
 		t.Errorf("expected status: stale in frontmatter, got:\n%s", content)
 	}
 }
+
+func TestSetStatusClear(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "My Note")
+
+	// Set status to "stale"
+	if err := SetStatus(vault, "My Note", "stale"); err != nil {
+		t.Fatalf("SetStatus(stale): %v", err)
+	}
+	content, err := Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read after SetStatus: %v", err)
+	}
+	if !strings.Contains(content, "status: stale") {
+		t.Errorf("expected status: stale in frontmatter, got:\n%s", content)
+	}
+
+	// Clear status by setting to empty string
+	if err := SetStatus(vault, "My Note", ""); err != nil {
+		t.Fatalf("SetStatus(clear): %v", err)
+	}
+	content, err = Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read after SetStatus clear: %v", err)
+	}
+	if strings.Contains(content, "status:") {
+		t.Errorf("expected status field to be removed, got:\n%s", content)
+	}
+}
