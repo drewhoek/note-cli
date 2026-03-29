@@ -144,3 +144,52 @@ func Append(vaultPath, title, content string) error {
 	_, err = fmt.Fprintf(f, "\n%s", content)
 	return err
 }
+
+// Pin marks a note as pinned in frontmatter.
+func Pin(vaultPath, title string) error {
+	content, err := Read(vaultPath, title)
+	if err != nil {
+		return err
+	}
+	meta, body := splitNote(content)
+	meta.pinned = true
+	return os.WriteFile(resolvePath(vaultPath, title), []byte(joinNote(meta, body)), 0644)
+}
+
+// Unpin removes the pinned flag from a note's frontmatter.
+func Unpin(vaultPath, title string) error {
+	content, err := Read(vaultPath, title)
+	if err != nil {
+		return err
+	}
+	meta, body := splitNote(content)
+	meta.pinned = false
+	return os.WriteFile(resolvePath(vaultPath, title), []byte(joinNote(meta, body)), 0644)
+}
+
+// SetStatus sets the status field in a note's frontmatter.
+// Valid values: active, stale, reference. Pass "" to clear.
+func SetStatus(vaultPath, title, status string) error {
+	content, err := Read(vaultPath, title)
+	if err != nil {
+		return err
+	}
+	meta, body := splitNote(content)
+	meta.status = status
+	return os.WriteFile(resolvePath(vaultPath, title), []byte(joinNote(meta, body)), 0644)
+}
+
+// Archive moves a note to the archive/ subdirectory inside the vault.
+// Archived notes are excluded from list, search, and context by default.
+func Archive(vaultPath, title string) error {
+	src := resolvePath(vaultPath, title)
+	if _, err := os.Stat(src); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("note %q not found", title)
+	}
+	archiveDir := filepath.Join(vaultPath, "archive")
+	if err := os.MkdirAll(archiveDir, 0755); err != nil {
+		return err
+	}
+	dst := filepath.Join(archiveDir, Slug(title)+".md")
+	return os.Rename(src, dst)
+}
