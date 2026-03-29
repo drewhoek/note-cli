@@ -8,3 +8,10 @@ profile:
   name: qodana.recommended
 include:
   - name: CheckDependencyLicenses
+
+exclude:
+  # fmt.Print* errors are unrecoverable in a CLI — ignoring is universal Go convention
+  - name: GoUnhandledErrorResult
+    paths:
+      - cmd/
+      - internal/
