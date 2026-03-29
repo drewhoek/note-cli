@@ -23,7 +23,7 @@ var openCmd = &cobra.Command{
 			return err
 		}
 		vaultName := filepath.Base(cfg.VaultPath)
-		slug := notes.Slug(args[0])
+		slug := notes.Slug(notes.ResolveTitle(args[0]))
 		uri := fmt.Sprintf("obsidian://open?vault=%s&file=%s",
 			url.QueryEscape(vaultName),
 			url.QueryEscape(slug),

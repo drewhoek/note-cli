@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var newTemplate string
+
 var newCmd = &cobra.Command{
 	Use:   "new <title>",
 	Short: "Create a new note",
@@ -18,7 +20,7 @@ var newCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := notes.Create(cfg.VaultPath, args[0]); err != nil {
+		if err := notes.CreateWithTemplate(cfg.VaultPath, args[0], newTemplate); err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "note: created %q\n", args[0])
@@ -28,4 +30,5 @@ var newCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(newCmd)
+	newCmd.Flags().StringVar(&newTemplate, "template", "", "note template: meeting, person, project")
 }

@@ -133,3 +133,66 @@ func TestAppendMissing(t *testing.T) {
 		t.Fatal("expected error appending to missing note, got nil")
 	}
 }
+
+func TestResolveTitle(t *testing.T) {
+	tests := []struct{ input, want string }{
+		{"[[My Note]]", "My Note"},
+		{"my-note", "my-note"},
+		{"[[slug]]", "slug"},
+	}
+	for _, tt := range tests {
+		got := ResolveTitle(tt.input)
+		if got != tt.want {
+			t.Errorf("ResolveTitle(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestCreateWithTemplate(t *testing.T) {
+	vault := t.TempDir()
+	if err := CreateWithTemplate(vault, "Standup", "meeting"); err != nil {
+		t.Fatalf("CreateWithTemplate: %v", err)
+	}
+	content, err := Read(vault, "Standup")
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !strings.Contains(content, "## Attendees") {
+		t.Errorf("expected meeting template sections, got:\n%s", content)
+	}
+}
+
+func TestRename(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Old Name")
+	mustCreate(t, vault, "Other Note")
+
+	// Add a wikilink in Other Note pointing to Old Name
+	if err := Append(vault, "Other Note", "See [[Old Name]] and [[old-name]] for details."); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	if err := Rename(vault, "Old Name", "New Name"); err != nil {
+		t.Fatalf("Rename: %v", err)
+	}
+
+	// Old file should be gone, new file should exist
+	if _, err := os.Stat(filepath.Join(vault, "old-name.md")); err == nil {
+		t.Error("expected old-name.md to be gone after rename")
+	}
+	if _, err := os.Stat(filepath.Join(vault, "new-name.md")); err != nil {
+		t.Error("expected new-name.md to exist after rename")
+	}
+
+	// Wikilinks in Other Note should be updated
+	content, err := Read(vault, "Other Note")
+	if err != nil {
+		t.Fatalf("Read Other Note: %v", err)
+	}
+	if strings.Contains(content, "[[Old Name]]") || strings.Contains(content, "[[old-name]]") {
+		t.Errorf("expected old wikilinks to be updated, got:\n%s", content)
+	}
+	if !strings.Contains(content, "[[New Name]]") {
+		t.Errorf("expected [[New Name]] in Other Note, got:\n%s", content)
+	}
+}

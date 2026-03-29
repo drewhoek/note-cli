@@ -8,24 +8,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var readCmd = &cobra.Command{
-	Use:   "read <title>",
-	Short: "Print the content of a note",
+var backlinksCmd = &cobra.Command{
+	Use:   "backlinks <title>",
+	Short: "List notes that link to this note",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
 			return err
 		}
-		content, err := notes.Read(cfg.VaultPath, notes.ResolveTitle(args[0]))
+		results, err := notes.Backlinks(cfg.VaultPath, args[0])
 		if err != nil {
 			return err
 		}
-		fmt.Print(content)
+		for _, r := range results {
+			fmt.Println(r)
+		}
 		return nil
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(readCmd)
+	rootCmd.AddCommand(backlinksCmd)
 }
