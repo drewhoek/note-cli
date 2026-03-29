@@ -107,6 +107,36 @@ func TestListIncludeArchived(t *testing.T) {
 	}
 }
 
+func TestListExcludesStaleByDefault(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Normal Note")
+	mustCreate(t, vault, "Stale Note")
+
+	if err := SetStatus(vault, "Stale Note", "stale"); err != nil {
+		t.Fatalf("SetStatus: %v", err)
+	}
+
+	titles, err := List(vault, "", "", false)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	for _, title := range titles {
+		if title == "stale-note" {
+			t.Error("stale note should be excluded from default List view")
+		}
+	}
+	// Normal note should still appear
+	found := false
+	for _, title := range titles {
+		if title == "normal-note" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected normal-note in default List view")
+	}
+}
+
 func TestSearchExact(t *testing.T) {
 	vault := t.TempDir()
 	mustCreate(t, vault, "Meeting Notes")

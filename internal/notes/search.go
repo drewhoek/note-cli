@@ -213,11 +213,20 @@ func SearchDetailed(vaultPath, query string, exact, includeArchived bool) ([]Not
 
 			var score float64
 			if exact {
+				meta, _ := splitNote(content)
+				if meta.status == "stale" && dir == vaultPath {
+					continue
+				}
 				if strings.Contains(slugLower, queryLower) || strings.Contains(contentLower, queryLower) {
 					score = 1.0
 				}
 			} else {
 				meta, body := splitNote(content)
+				// Exclude stale notes from default fuzzy search (consistent with List behavior).
+				// Archived dirs are not filtered — caller opted in with includeArchived.
+				if meta.status == "stale" && dir == vaultPath {
+					continue
+				}
 				titleScore := bigramSimilarity(query, slug)
 				contentScore := bigramSimilarity(query, body)
 				score = titleScore

@@ -55,16 +55,28 @@ func runContext(vaultPath string) error {
 			continue
 		}
 		content := string(data)
-		tags, _ := notes.ReadTags(vaultPath, slug)
-		for _, t := range tags {
+
+		meta, err := notes.ReadMeta(vaultPath, slug)
+		if err != nil {
+			continue
+		}
+
+		for _, t := range meta.Tags {
 			tagCounts[t]++
 		}
 
-		info := parseNoteInfo(slug, content, tags)
+		info := noteInfo{
+			slug:    slug,
+			date:    meta.Date,
+			tags:    meta.Tags,
+			pinned:  meta.Pinned,
+			status:  meta.Status,
+			content: content,
+		}
 
 		if info.pinned {
 			pinned = append(pinned, info)
-		} else if hasTag(tags, "daily") {
+		} else if hasTag(meta.Tags, "daily") {
 			dailies = append(dailies, info)
 		} else if info.status != "stale" {
 			active = append(active, info)
@@ -130,30 +142,6 @@ func runContext(vaultPath string) error {
 	}
 
 	return nil
-}
-
-func parseNoteInfo(slug, content string, tags []string) noteInfo {
-	info := noteInfo{slug: slug, content: content, tags: tags}
-	if !strings.HasPrefix(content, "---\n") {
-		return info
-	}
-	rest := content[4:]
-	end := strings.Index(rest, "\n---\n")
-	if end == -1 {
-		return info
-	}
-	header := rest[:end]
-	for _, line := range strings.Split(header, "\n") {
-		switch {
-		case strings.HasPrefix(line, "date: "):
-			info.date = strings.TrimPrefix(line, "date: ")
-		case strings.HasPrefix(line, "pinned: "):
-			info.pinned = strings.TrimPrefix(line, "pinned: ") == "true"
-		case strings.HasPrefix(line, "status: "):
-			info.status = strings.TrimPrefix(line, "status: ")
-		}
-	}
-	return info
 }
 
 func hasTag(tags []string, target string) bool {

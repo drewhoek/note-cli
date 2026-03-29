@@ -81,6 +81,29 @@ func parseTagList(s string) []string {
 	return tags
 }
 
+// NoteMeta holds the parsed frontmatter fields of a note.
+type NoteMeta struct {
+	Date   string
+	Tags   []string
+	Pinned bool
+	Status string
+}
+
+// ReadMeta returns the parsed frontmatter metadata for a note.
+func ReadMeta(vaultPath, title string) (NoteMeta, error) {
+	content, err := Read(vaultPath, title)
+	if err != nil {
+		return NoteMeta{}, err
+	}
+	meta, _ := splitNote(content)
+	return NoteMeta{
+		Date:   meta.date,
+		Tags:   meta.tags,
+		Pinned: meta.pinned,
+		Status: meta.status,
+	}, nil
+}
+
 // ReadTags returns the tags from a note's frontmatter.
 func ReadTags(vaultPath, title string) ([]string, error) {
 	content, err := Read(vaultPath, title)
