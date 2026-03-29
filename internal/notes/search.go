@@ -87,25 +87,34 @@ func List(vaultPath, tag, status string, includeArchived bool) ([]string, error)
 			slug := strings.TrimSuffix(e.Name(), ".md")
 			notePath := filepath.Join(dir, e.Name())
 
-			if tag != "" || status != "" {
-				data, err := os.ReadFile(notePath)
-				if err != nil {
+			// Always read frontmatter: we need it to filter by tag, status, or
+			// to apply the default behaviour of hiding stale notes.
+			data, err := os.ReadFile(notePath)
+			if err != nil {
+				continue
+			}
+			meta, _ := splitNote(string(data))
+			if tag != "" {
+				found := false
+				for _, t := range meta.tags {
+					if t == tag {
+						found = true
+						break
+					}
+				}
+				if !found {
 					continue
 				}
-				meta, _ := splitNote(string(data))
-				if tag != "" {
-					found := false
-					for _, t := range meta.tags {
-						if t == tag {
-							found = true
-							break
-						}
-					}
-					if !found {
-						continue
-					}
+			}
+			if status != "" {
+				// Explicit status filter: only show notes matching that status.
+				if meta.status != status {
+					continue
 				}
-				if status != "" && meta.status != status {
+			} else if dir == vaultPath {
+				// Default (active vault only): exclude stale notes.
+				// Notes in the archive dir are shown as-is when includeArchived is set.
+				if meta.status == "stale" {
 					continue
 				}
 			}
