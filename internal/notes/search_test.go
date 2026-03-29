@@ -2,6 +2,7 @@ package notes
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -190,6 +191,49 @@ func TestRelated(t *testing.T) {
 	// Wikilink results should come before tag results
 	if len(related) >= 2 && related[0] != "target" {
 		t.Errorf("expected wikilink results first, got %v", related)
+	}
+}
+
+func TestSearchDetailed_Snippet(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Meeting Notes")
+	if err := Append(vault, "Meeting Notes", "We discussed the quarterly budget review."); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	results, err := SearchDetailed(vault, "quarterly", true, false)
+	if err != nil {
+		t.Fatalf("SearchDetailed: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected at least one result")
+	}
+	if results[0].Snippet == "" {
+		t.Error("expected non-empty snippet in verbose search")
+	}
+	if !strings.Contains(results[0].Snippet, "quarterly") {
+		t.Errorf("expected snippet to contain query word, got: %q", results[0].Snippet)
+	}
+}
+
+func TestSearchDetailed_PinnedBoost(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "meeting alpha")
+	mustCreate(t, vault, "meeting beta")
+
+	if err := Pin(vault, "meeting beta"); err != nil {
+		t.Fatalf("Pin: %v", err)
+	}
+
+	results, err := SearchDetailed(vault, "meeting", false, false)
+	if err != nil {
+		t.Fatalf("SearchDetailed: %v", err)
+	}
+	if len(results) < 2 {
+		t.Fatal("expected at least 2 results")
+	}
+	if results[0].Slug != "meeting-beta" {
+		t.Errorf("expected pinned note to rank first, got %v", results[0].Slug)
 	}
 }
 

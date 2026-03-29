@@ -9,6 +9,8 @@ import (
 )
 
 var searchExact bool
+var searchVerbose bool
+var searchIncludeArchived bool
 
 var searchCmd = &cobra.Command{
 	Use:   "search <query>",
@@ -19,12 +21,16 @@ var searchCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		results, err := notes.Search(cfg.VaultPath, args[0], searchExact)
+		results, err := notes.SearchDetailed(cfg.VaultPath, args[0], searchExact, searchIncludeArchived)
 		if err != nil {
 			return err
 		}
 		for _, r := range results {
-			fmt.Println(r)
+			if searchVerbose {
+				fmt.Printf("%s\n  %s\n\n", r.Slug, r.Snippet)
+			} else {
+				fmt.Println(r.Slug)
+			}
 		}
 		return nil
 	},
@@ -33,4 +39,6 @@ var searchCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(searchCmd)
 	searchCmd.Flags().BoolVar(&searchExact, "exact", false, "use exact substring matching instead of fuzzy")
+	searchCmd.Flags().BoolVar(&searchVerbose, "verbose", false, "show a content snippet for each result")
+	searchCmd.Flags().BoolVar(&searchIncludeArchived, "include-archived", false, "include archived notes in results")
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // bigrams returns a frequency map of overlapping 2-character substrings.
@@ -119,55 +120,145 @@ type searchResult struct {
 	score float64
 }
 
-// Search searches note titles and content. With exact=true, uses substring match.
-// With exact=false, uses bigram similarity scoring and returns results ranked by score.
-func Search(vaultPath, query string, exact bool) ([]string, error) {
-	entries, err := os.ReadDir(vaultPath)
-	if err != nil {
-		return nil, err
+// NoteResult is a search result with an optional context snippet.
+type NoteResult struct {
+	Slug    string
+	Snippet string
+}
+
+// extractSnippet returns a short excerpt from content around the first occurrence of query.
+// Returns the first 100 characters of content if query is not found.
+func extractSnippet(content, query string) string {
+	lower := strings.ToLower(content)
+	queryLower := strings.ToLower(query)
+	idx := strings.Index(lower, queryLower)
+
+	var raw string
+	if idx == -1 {
+		if len(content) > 100 {
+			raw = content[:100]
+		} else {
+			raw = content
+		}
+		return strings.TrimSpace(strings.ReplaceAll(raw, "\n", " "))
 	}
 
-	var results []searchResult
+	start := idx - 50
+	if start < 0 {
+		start = 0
+	}
+	end := idx + len(query) + 50
+	if end > len(content) {
+		end = len(content)
+	}
+
+	snippet := strings.ReplaceAll(content[start:end], "\n", " ")
+	snippet = strings.TrimSpace(snippet)
+	if start > 0 {
+		snippet = "..." + snippet
+	}
+	if end < len(content) {
+		snippet += "..."
+	}
+	return snippet
+}
+
+// SearchDetailed searches note titles and content, returning NoteResult with optional snippets.
+// With exact=true, uses substring match. With exact=false, uses bigram similarity with
+// a 1.5x boost for pinned notes and a 1.1x boost for notes dated within the last 30 days.
+func SearchDetailed(vaultPath, query string, exact, includeArchived bool) ([]NoteResult, error) {
+	var dirs []string
+	dirs = append(dirs, vaultPath)
+	if includeArchived {
+		dirs = append(dirs, filepath.Join(vaultPath, "archive"))
+	}
+
+	type scoredResult struct {
+		slug    string
+		score   float64
+		content string
+	}
+	var scored []scoredResult
 	queryLower := strings.ToLower(query)
 
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		slug := strings.TrimSuffix(e.Name(), ".md")
-		data, err := os.ReadFile(filepath.Join(vaultPath, e.Name()))
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
 		if err != nil {
-			continue
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
 		}
-		contentLower := strings.ToLower(string(data))
-		slugLower := strings.ToLower(slug)
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+				continue
+			}
+			slug := strings.TrimSuffix(e.Name(), ".md")
+			data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+			if err != nil {
+				continue
+			}
+			content := string(data)
+			contentLower := strings.ToLower(content)
+			slugLower := strings.ToLower(slug)
 
-		if exact {
-			if strings.Contains(slugLower, queryLower) || strings.Contains(contentLower, queryLower) {
-				results = append(results, searchResult{slug: slug, score: 1.0})
+			var score float64
+			if exact {
+				if strings.Contains(slugLower, queryLower) || strings.Contains(contentLower, queryLower) {
+					score = 1.0
+				}
+			} else {
+				meta, body := splitNote(content)
+				titleScore := bigramSimilarity(query, slug)
+				contentScore := bigramSimilarity(query, body)
+				score = titleScore
+				if contentScore > score {
+					score = contentScore
+				}
+				if score > 0.1 {
+					if meta.pinned {
+						score *= 1.5
+					}
+					if t, err := time.Parse("2006-01-02", meta.date); err == nil {
+						if time.Since(t).Hours()/24 < 30 {
+							score *= 1.1
+						}
+					}
+				}
 			}
-		} else {
-			titleScore := bigramSimilarity(query, slug)
-			contentScore := bigramSimilarity(query, string(data))
-			score := titleScore
-			if contentScore > score {
-				score = contentScore
-			}
-			if score > 0.1 {
-				results = append(results, searchResult{slug: slug, score: score})
+
+			if score > 0 {
+				scored = append(scored, scoredResult{slug: slug, score: score, content: content})
 			}
 		}
 	}
 
 	if !exact {
-		sort.Slice(results, func(i, j int) bool {
-			return results[i].score > results[j].score
+		sort.Slice(scored, func(i, j int) bool {
+			return scored[i].score > scored[j].score
 		})
 	}
 
+	results := make([]NoteResult, len(scored))
+	for i, r := range scored {
+		results[i] = NoteResult{
+			Slug:    r.slug,
+			Snippet: extractSnippet(r.content, query),
+		}
+	}
+	return results, nil
+}
+
+// Search searches note slugs only.
+// Use SearchDetailed for snippet support and scoring boosts.
+func Search(vaultPath, query string, exact bool) ([]string, error) {
+	results, err := SearchDetailed(vaultPath, query, exact, false)
+	if err != nil {
+		return nil, err
+	}
 	slugs := make([]string, len(results))
 	for i, r := range results {
-		slugs[i] = r.slug
+		slugs[i] = r.Slug
 	}
 	return slugs, nil
 }
