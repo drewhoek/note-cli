@@ -48,10 +48,14 @@ Use the ` + "`note`" + ` CLI to read and write notes in the user's local Obsidia
 
 ## Autonomous use policy
 
-- ` + "`read`, `search`, `list`, `links`, `backlinks`" + ` — always safe, no confirmation needed
-- ` + "`new`, `append`, `tag`, `today`, `rename`" + ` — low-risk, proceed without asking
+- ` + "`read`, `search`, `list`, `links`, `backlinks`, `context`" + ` — always safe, no confirmation needed
+- ` + "`new`, `append`, `tag`, `today`, `rename`, `pin`, `unpin`, `set-status`, `archive`, `related`" + ` — low-risk, proceed without asking
 - ` + "`open`" + ` — launches Obsidian on the user's machine, mention it but proceed
 - ` + "`install-skill`" + ` — modifies Claude Code config, confirm with user first
+
+## Session Start
+
+At the start of every session, run ` + "`note context`" + ` and use the output to orient yourself before responding. Pinned notes contain critical context about the user and active projects.
 
 ## Setup (first time)
 
@@ -80,16 +84,25 @@ note read "Title"
 note read "[[Title]]"
 ` + "```" + `
 
+### Vault context (session bootstrap)
+` + "```bash" + `
+note context                  # structured vault summary — run at session start
+` + "```" + `
+
 ### List notes
 ` + "```bash" + `
 note list
 note list --tag work
+note list --status active              # filter by status: active, stale, reference
+note list --include-archived           # include archived notes
 ` + "```" + `
 
 ### Search notes
 ` + "```bash" + `
-note search "query"           # fuzzy (default) — searches titles and body
-note search "query" --exact   # exact substring
+note search "query"                    # fuzzy (default) — searches titles and body
+note search "query" --exact            # exact substring
+note search "query" --verbose          # show content snippet for each result
+note search "query" --include-archived # include archived notes
 ` + "```" + `
 
 ### Tags
@@ -104,6 +117,21 @@ note tag remove "Title" work  # remove a tag
 note links "Title"            # list all [[wikilinks]] in a note
 note backlinks "Title"        # list notes that link to this one
 note rename "Old" "New"       # rename + update all wikilinks across vault
+` + "```" + `
+
+### Pin / archive notes
+` + "```bash" + `
+note pin "Title"              # pin a note — appears in context with full content
+note unpin "Title"            # unpin a note
+note archive "Title"          # move to archive/ (excluded from list/search/context)
+note set-status "Title" active      # set lifecycle status: active, stale, reference
+note set-status "Title" stale
+note set-status "Title" reference
+` + "```" + `
+
+### Related notes
+` + "```bash" + `
+note related "Title"          # find notes connected by wikilinks or shared tags
 ` + "```" + `
 
 ### Open in Obsidian
