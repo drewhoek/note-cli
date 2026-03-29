@@ -2,6 +2,7 @@ package notes
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -29,7 +30,7 @@ func TestList(t *testing.T) {
 	mustCreate(t, vault, "Beta")
 	mustCreate(t, vault, "Gamma")
 
-	titles, err := List(vault, "")
+	titles, err := List(vault, "", "", false)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -43,12 +44,96 @@ func TestListByTag(t *testing.T) {
 	writeNoteWithTag(t, vault, "work-note", "work")
 	writeNoteWithTag(t, vault, "personal-note", "personal")
 
-	titles, err := List(vault, "work")
+	titles, err := List(vault, "work", "", false)
 	if err != nil {
 		t.Fatalf("List with tag: %v", err)
 	}
 	if len(titles) != 1 || titles[0] != "work-note" {
 		t.Errorf("List(work) = %v, want [work-note]", titles)
+	}
+}
+
+func TestListByStatus(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Active Note")
+	mustCreate(t, vault, "Stale Note")
+
+	if err := SetStatus(vault, "Stale Note", "stale"); err != nil {
+		t.Fatalf("SetStatus: %v", err)
+	}
+
+	titles, err := List(vault, "", "stale", false)
+	if err != nil {
+		t.Fatalf("List with status: %v", err)
+	}
+	if len(titles) != 1 || titles[0] != "stale-note" {
+		t.Errorf("List(status=stale) = %v, want [stale-note]", titles)
+	}
+}
+
+func TestListIncludeArchived(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Active Note")
+	mustCreate(t, vault, "Old Note")
+
+	if err := Archive(vault, "Old Note"); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+
+	// Without flag: archived note excluded
+	titles, err := List(vault, "", "", false)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	for _, title := range titles {
+		if title == "old-note" {
+			t.Error("archived note should be excluded from List by default")
+		}
+	}
+
+	// With flag: archived note included
+	all, err := List(vault, "", "", true)
+	if err != nil {
+		t.Fatalf("List includeArchived: %v", err)
+	}
+	found := false
+	for _, title := range all {
+		if title == "old-note" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected archived note in List with includeArchived=true")
+	}
+}
+
+func TestListExcludesStaleByDefault(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Normal Note")
+	mustCreate(t, vault, "Stale Note")
+
+	if err := SetStatus(vault, "Stale Note", "stale"); err != nil {
+		t.Fatalf("SetStatus: %v", err)
+	}
+
+	titles, err := List(vault, "", "", false)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	for _, title := range titles {
+		if title == "stale-note" {
+			t.Error("stale note should be excluded from default List view")
+		}
+	}
+	// Normal note should still appear
+	found := false
+	for _, title := range titles {
+		if title == "normal-note" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected normal-note in default List view")
 	}
 }
 
@@ -92,6 +177,93 @@ func TestOutlinks(t *testing.T) {
 	}
 	if len(links) != 2 {
 		t.Errorf("Outlinks = %v, want 2 results", links)
+	}
+}
+
+func TestRelated(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Source")
+	mustCreate(t, vault, "Target")
+	mustCreate(t, vault, "Tagged")
+	mustCreate(t, vault, "Unrelated")
+
+	// Source links to Target
+	if err := Append(vault, "Source", "See [[Target]]."); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	// Source and Tagged share a tag
+	if _, err := AddTag(vault, "Source", "work"); err != nil {
+		t.Fatalf("AddTag Source: %v", err)
+	}
+	if _, err := AddTag(vault, "Tagged", "work"); err != nil {
+		t.Fatalf("AddTag Tagged: %v", err)
+	}
+
+	related, err := Related(vault, "Source")
+	if err != nil {
+		t.Fatalf("Related: %v", err)
+	}
+
+	slugs := map[string]bool{}
+	for _, r := range related {
+		slugs[r] = true
+	}
+
+	if !slugs["target"] {
+		t.Error("expected 'target' in related (wikilink)")
+	}
+	if !slugs["tagged"] {
+		t.Error("expected 'tagged' in related (shared tag)")
+	}
+	if slugs["unrelated"] {
+		t.Error("expected 'unrelated' NOT in related")
+	}
+	// Wikilink results should come before tag results
+	if len(related) >= 2 && related[0] != "target" {
+		t.Errorf("expected wikilink results first, got %v", related)
+	}
+}
+
+func TestSearchDetailed_Snippet(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Meeting Notes")
+	if err := Append(vault, "Meeting Notes", "We discussed the quarterly budget review."); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	results, err := SearchDetailed(vault, "quarterly", true, false)
+	if err != nil {
+		t.Fatalf("SearchDetailed: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected at least one result")
+	}
+	if results[0].Snippet == "" {
+		t.Error("expected non-empty snippet in verbose search")
+	}
+	if !strings.Contains(results[0].Snippet, "quarterly") {
+		t.Errorf("expected snippet to contain query word, got: %q", results[0].Snippet)
+	}
+}
+
+func TestSearchDetailed_PinnedBoost(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "meeting alpha")
+	mustCreate(t, vault, "meeting beta")
+
+	if err := Pin(vault, "meeting beta"); err != nil {
+		t.Fatalf("Pin: %v", err)
+	}
+
+	results, err := SearchDetailed(vault, "meeting", false, false)
+	if err != nil {
+		t.Fatalf("SearchDetailed: %v", err)
+	}
+	if len(results) < 2 {
+		t.Fatal("expected at least 2 results")
+	}
+	if results[0].Slug != "meeting-beta" {
+		t.Errorf("expected pinned note to rank first, got %v", results[0].Slug)
 	}
 }
 

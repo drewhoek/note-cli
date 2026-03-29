@@ -196,3 +196,102 @@ func TestRename(t *testing.T) {
 		t.Errorf("expected [[New Name]] in Other Note, got:\n%s", content)
 	}
 }
+
+func TestPinRoundtrip(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "My Note")
+
+	if err := Pin(vault, "My Note"); err != nil {
+		t.Fatalf("Pin: %v", err)
+	}
+	content, err := Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !strings.Contains(content, "pinned: true") {
+		t.Errorf("expected pinned: true in frontmatter, got:\n%s", content)
+	}
+
+	if err := Unpin(vault, "My Note"); err != nil {
+		t.Fatalf("Unpin: %v", err)
+	}
+	content, err = Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read after Unpin: %v", err)
+	}
+	if strings.Contains(content, "pinned:") {
+		t.Errorf("expected pinned field removed after Unpin, got:\n%s", content)
+	}
+}
+
+func TestSetStatus(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "My Note")
+
+	if err := SetStatus(vault, "My Note", "stale"); err != nil {
+		t.Fatalf("SetStatus: %v", err)
+	}
+	content, err := Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !strings.Contains(content, "status: stale") {
+		t.Errorf("expected status: stale in frontmatter, got:\n%s", content)
+	}
+}
+
+func TestSetStatusClear(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "My Note")
+
+	// Set status to "stale"
+	if err := SetStatus(vault, "My Note", "stale"); err != nil {
+		t.Fatalf("SetStatus(stale): %v", err)
+	}
+	content, err := Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read after SetStatus: %v", err)
+	}
+	if !strings.Contains(content, "status: stale") {
+		t.Errorf("expected status: stale in frontmatter, got:\n%s", content)
+	}
+
+	// Clear status by setting to empty string
+	if err := SetStatus(vault, "My Note", ""); err != nil {
+		t.Fatalf("SetStatus(clear): %v", err)
+	}
+	content, err = Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read after SetStatus clear: %v", err)
+	}
+	if strings.Contains(content, "status:") {
+		t.Errorf("expected status field to be removed, got:\n%s", content)
+	}
+}
+
+func TestArchive(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Old Note")
+
+	if err := Archive(vault, "Old Note"); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+
+	// Original file should be gone from vault root
+	if _, err := os.Stat(filepath.Join(vault, "old-note.md")); err == nil {
+		t.Error("expected old-note.md to be gone from vault root after archive")
+	}
+
+	// File should exist in archive/ subdir
+	if _, err := os.Stat(filepath.Join(vault, "archive", "old-note.md")); err != nil {
+		t.Errorf("expected archive/old-note.md to exist: %v", err)
+	}
+}
+
+func TestArchiveMissing(t *testing.T) {
+	vault := t.TempDir()
+	err := Archive(vault, "nonexistent")
+	if err == nil {
+		t.Fatal("expected error archiving missing note, got nil")
+	}
+}
