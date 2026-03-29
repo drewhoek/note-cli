@@ -1,15 +1,16 @@
 package notes
 
 import (
-	"fmt"
 	"os"
 	"strings"
 )
 
 // noteMeta holds the parsed frontmatter fields we care about.
 type noteMeta struct {
-	date string
-	tags []string
+	date   string
+	tags   []string
+	pinned bool
+	status string
 }
 
 // splitNote parses a note file into its frontmatter metadata and body text.
@@ -33,6 +34,10 @@ func splitNote(content string) (noteMeta, string) {
 			meta.date = strings.TrimPrefix(line, "date: ")
 		case strings.HasPrefix(line, "tags: "):
 			meta.tags = parseTagList(strings.TrimPrefix(line, "tags: "))
+		case strings.HasPrefix(line, "pinned: "):
+			meta.pinned = strings.TrimPrefix(line, "pinned: ") == "true"
+		case strings.HasPrefix(line, "status: "):
+			meta.status = strings.TrimPrefix(line, "status: ")
 		}
 	}
 	return meta, body
@@ -44,7 +49,19 @@ func joinNote(meta noteMeta, body string) string {
 	if len(meta.tags) > 0 {
 		tags = "[" + strings.Join(meta.tags, ", ") + "]"
 	}
-	return fmt.Sprintf("---\ndate: %s\ntags: %s\n---\n%s", meta.date, tags, body)
+	var sb strings.Builder
+	sb.WriteString("---\n")
+	sb.WriteString("date: " + meta.date + "\n")
+	sb.WriteString("tags: " + tags + "\n")
+	if meta.pinned {
+		sb.WriteString("pinned: true\n")
+	}
+	if meta.status != "" {
+		sb.WriteString("status: " + meta.status + "\n")
+	}
+	sb.WriteString("---\n")
+	sb.WriteString(body)
+	return sb.String()
 }
 
 // parseTagList parses a YAML flow sequence like "[]" or "[work, meeting]".

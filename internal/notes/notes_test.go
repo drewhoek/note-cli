@@ -196,3 +196,46 @@ func TestRename(t *testing.T) {
 		t.Errorf("expected [[New Name]] in Other Note, got:\n%s", content)
 	}
 }
+
+func TestPinRoundtrip(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "My Note")
+
+	if err := Pin(vault, "My Note"); err != nil {
+		t.Fatalf("Pin: %v", err)
+	}
+	content, err := Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !strings.Contains(content, "pinned: true") {
+		t.Errorf("expected pinned: true in frontmatter, got:\n%s", content)
+	}
+
+	if err := Unpin(vault, "My Note"); err != nil {
+		t.Fatalf("Unpin: %v", err)
+	}
+	content, err = Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read after Unpin: %v", err)
+	}
+	if strings.Contains(content, "pinned:") {
+		t.Errorf("expected pinned field removed after Unpin, got:\n%s", content)
+	}
+}
+
+func TestSetStatus(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "My Note")
+
+	if err := SetStatus(vault, "My Note", "stale"); err != nil {
+		t.Fatalf("SetStatus: %v", err)
+	}
+	content, err := Read(vault, "My Note")
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !strings.Contains(content, "status: stale") {
+		t.Errorf("expected status: stale in frontmatter, got:\n%s", content)
+	}
+}
