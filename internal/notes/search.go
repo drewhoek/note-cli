@@ -124,10 +124,6 @@ func List(vaultPath, tag, status string, includeArchived bool) ([]string, error)
 	return titles, nil
 }
 
-type searchResult struct {
-	slug  string
-	score float64
-}
 
 // NoteResult is a search result with an optional context snippet.
 type NoteResult struct {
