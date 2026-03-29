@@ -29,7 +29,7 @@ func TestList(t *testing.T) {
 	mustCreate(t, vault, "Beta")
 	mustCreate(t, vault, "Gamma")
 
-	titles, err := List(vault, "")
+	titles, err := List(vault, "", "", false)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -43,12 +43,66 @@ func TestListByTag(t *testing.T) {
 	writeNoteWithTag(t, vault, "work-note", "work")
 	writeNoteWithTag(t, vault, "personal-note", "personal")
 
-	titles, err := List(vault, "work")
+	titles, err := List(vault, "work", "", false)
 	if err != nil {
 		t.Fatalf("List with tag: %v", err)
 	}
 	if len(titles) != 1 || titles[0] != "work-note" {
 		t.Errorf("List(work) = %v, want [work-note]", titles)
+	}
+}
+
+func TestListByStatus(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Active Note")
+	mustCreate(t, vault, "Stale Note")
+
+	if err := SetStatus(vault, "Stale Note", "stale"); err != nil {
+		t.Fatalf("SetStatus: %v", err)
+	}
+
+	titles, err := List(vault, "", "stale", false)
+	if err != nil {
+		t.Fatalf("List with status: %v", err)
+	}
+	if len(titles) != 1 || titles[0] != "stale-note" {
+		t.Errorf("List(status=stale) = %v, want [stale-note]", titles)
+	}
+}
+
+func TestListIncludeArchived(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Active Note")
+	mustCreate(t, vault, "Old Note")
+
+	if err := Archive(vault, "Old Note"); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+
+	// Without flag: archived note excluded
+	titles, err := List(vault, "", "", false)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	for _, title := range titles {
+		if title == "old-note" {
+			t.Error("archived note should be excluded from List by default")
+		}
+	}
+
+	// With flag: archived note included
+	all, err := List(vault, "", "", true)
+	if err != nil {
+		t.Fatalf("List includeArchived: %v", err)
+	}
+	found := false
+	for _, title := range all {
+		if title == "old-note" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected archived note in List with includeArchived=true")
 	}
 }
 

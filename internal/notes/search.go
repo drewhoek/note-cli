@@ -61,35 +61,55 @@ func parseTags(path string) ([]string, error) {
 	return meta.tags, nil
 }
 
-// List returns all note slugs in the vault, optionally filtered by tag.
-func List(vaultPath, tag string) ([]string, error) {
-	entries, err := os.ReadDir(vaultPath)
-	if err != nil {
-		return nil, err
+// List returns all note slugs in the vault, optionally filtered by tag and/or status.
+// Pass includeArchived=true to also include notes in the archive/ subdirectory.
+func List(vaultPath, tag, status string, includeArchived bool) ([]string, error) {
+	var dirs []string
+	dirs = append(dirs, vaultPath)
+	if includeArchived {
+		dirs = append(dirs, filepath.Join(vaultPath, "archive"))
 	}
+
 	var titles []string
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		slug := strings.TrimSuffix(e.Name(), ".md")
-		if tag != "" {
-			tags, err := parseTags(filepath.Join(vaultPath, e.Name()))
-			if err != nil {
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if os.IsNotExist(err) {
 				continue
 			}
-			found := false
-			for _, t := range tags {
-				if t == tag {
-					found = true
-					break
+			return nil, err
+		}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+				continue
+			}
+			slug := strings.TrimSuffix(e.Name(), ".md")
+			notePath := filepath.Join(dir, e.Name())
+
+			if tag != "" || status != "" {
+				data, err := os.ReadFile(notePath)
+				if err != nil {
+					continue
+				}
+				meta, _ := splitNote(string(data))
+				if tag != "" {
+					found := false
+					for _, t := range meta.tags {
+						if t == tag {
+							found = true
+							break
+						}
+					}
+					if !found {
+						continue
+					}
+				}
+				if status != "" && meta.status != status {
+					continue
 				}
 			}
-			if !found {
-				continue
-			}
+			titles = append(titles, slug)
 		}
-		titles = append(titles, slug)
 	}
 	return titles, nil
 }
