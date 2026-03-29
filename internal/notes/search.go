@@ -233,3 +233,55 @@ func Backlinks(vaultPath, title string) ([]string, error) {
 	sort.Strings(results)
 	return results, nil
 }
+
+// Related returns slugs of notes connected to the given note by wikilinks (highest rank)
+// or shared tags (lower rank). The note itself is excluded.
+func Related(vaultPath, title string) ([]string, error) {
+	slug := Slug(title)
+	seen := map[string]bool{slug: true}
+	var results []string
+
+	// Wikilink connections (highest rank): notes this note links to + notes that link back
+	outlinks, _ := Outlinks(vaultPath, title)
+	backlinks, _ := Backlinks(vaultPath, title)
+	for _, l := range append(outlinks, backlinks...) {
+		lSlug := Slug(l)
+		if !seen[lSlug] {
+			seen[lSlug] = true
+			results = append(results, lSlug)
+		}
+	}
+
+	// Shared tag connections (lower rank)
+	myTags, err := ReadTags(vaultPath, title)
+	if err != nil {
+		return results, nil
+	}
+	tagSet := make(map[string]bool, len(myTags))
+	for _, t := range myTags {
+		tagSet[t] = true
+	}
+
+	entries, err := os.ReadDir(vaultPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		noteSlug := strings.TrimSuffix(e.Name(), ".md")
+		if seen[noteSlug] {
+			continue
+		}
+		tags, _ := parseTags(filepath.Join(vaultPath, e.Name()))
+		for _, t := range tags {
+			if tagSet[t] {
+				results = append(results, noteSlug)
+				seen[noteSlug] = true
+				break
+			}
+		}
+	}
+	return results, nil
+}

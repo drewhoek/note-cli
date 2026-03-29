@@ -149,6 +149,50 @@ func TestOutlinks(t *testing.T) {
 	}
 }
 
+func TestRelated(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Source")
+	mustCreate(t, vault, "Target")
+	mustCreate(t, vault, "Tagged")
+	mustCreate(t, vault, "Unrelated")
+
+	// Source links to Target
+	if err := Append(vault, "Source", "See [[Target]]."); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	// Source and Tagged share a tag
+	if _, err := AddTag(vault, "Source", "work"); err != nil {
+		t.Fatalf("AddTag Source: %v", err)
+	}
+	if _, err := AddTag(vault, "Tagged", "work"); err != nil {
+		t.Fatalf("AddTag Tagged: %v", err)
+	}
+
+	related, err := Related(vault, "Source")
+	if err != nil {
+		t.Fatalf("Related: %v", err)
+	}
+
+	slugs := map[string]bool{}
+	for _, r := range related {
+		slugs[r] = true
+	}
+
+	if !slugs["target"] {
+		t.Error("expected 'target' in related (wikilink)")
+	}
+	if !slugs["tagged"] {
+		t.Error("expected 'tagged' in related (shared tag)")
+	}
+	if slugs["unrelated"] {
+		t.Error("expected 'unrelated' NOT in related")
+	}
+	// Wikilink results should come before tag results
+	if len(related) >= 2 && related[0] != "target" {
+		t.Errorf("expected wikilink results first, got %v", related)
+	}
+}
+
 func writeNoteWithTag(t *testing.T, vault, slug, tag string) {
 	t.Helper()
 	path := vault + "/" + slug + ".md"
