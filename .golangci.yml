@@ -11,5 +11,12 @@ linters:
 
 linters-settings:
   errcheck:
-    # don't flag intentional discards like io.Close in defer
     check-type-assertions: true
+    # fmt.Print* errors are unrecoverable in a CLI — ignoring is universal Go convention
+    exclude-functions:
+      - fmt.Print
+      - fmt.Println
+      - fmt.Printf
+      - fmt.Fprint
+      - fmt.Fprintln
+      - fmt.Fprintf
