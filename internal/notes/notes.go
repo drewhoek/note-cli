@@ -178,3 +178,18 @@ func SetStatus(vaultPath, title, status string) error {
 	meta.status = status
 	return os.WriteFile(resolvePath(vaultPath, title), []byte(joinNote(meta, body)), 0644)
 }
+
+// Archive moves a note to the archive/ subdirectory inside the vault.
+// Archived notes are excluded from list, search, and context by default.
+func Archive(vaultPath, title string) error {
+	src := resolvePath(vaultPath, title)
+	if _, err := os.Stat(src); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("note %q not found", title)
+	}
+	archiveDir := filepath.Join(vaultPath, "archive")
+	if err := os.MkdirAll(archiveDir, 0755); err != nil {
+		return err
+	}
+	dst := filepath.Join(archiveDir, Slug(title)+".md")
+	return os.Rename(src, dst)
+}

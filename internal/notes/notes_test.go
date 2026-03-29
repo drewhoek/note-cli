@@ -268,3 +268,30 @@ func TestSetStatusClear(t *testing.T) {
 		t.Errorf("expected status field to be removed, got:\n%s", content)
 	}
 }
+
+func TestArchive(t *testing.T) {
+	vault := t.TempDir()
+	mustCreate(t, vault, "Old Note")
+
+	if err := Archive(vault, "Old Note"); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+
+	// Original file should be gone from vault root
+	if _, err := os.Stat(filepath.Join(vault, "old-note.md")); err == nil {
+		t.Error("expected old-note.md to be gone from vault root after archive")
+	}
+
+	// File should exist in archive/ subdir
+	if _, err := os.Stat(filepath.Join(vault, "archive", "old-note.md")); err != nil {
+		t.Errorf("expected archive/old-note.md to exist: %v", err)
+	}
+}
+
+func TestArchiveMissing(t *testing.T) {
+	vault := t.TempDir()
+	err := Archive(vault, "nonexistent")
+	if err == nil {
+		t.Fatal("expected error archiving missing note, got nil")
+	}
+}
