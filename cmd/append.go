@@ -36,10 +36,11 @@ var appendCmd = &cobra.Command{
 			content = strings.Join(lines, "\n")
 		}
 
-		if err := notes.Append(cfg.VaultPath, args[0], content); err != nil {
+		title := notes.ResolveTitle(args[0])
+		if err := notes.Append(cfg.VaultPath, title, content); err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stderr, "note: appended to %q\n", args[0])
+		fmt.Fprintf(os.Stderr, "note: appended to %q\n", title)
 		return nil
 	},
 }

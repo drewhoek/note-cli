@@ -152,6 +152,31 @@ func Search(vaultPath, query string, exact bool) ([]string, error) {
 	return slugs, nil
 }
 
+// Outlinks returns all [[wikilink]] targets found in the given note.
+func Outlinks(vaultPath, title string) ([]string, error) {
+	content, err := Read(vaultPath, title)
+	if err != nil {
+		return nil, err
+	}
+	var links []string
+	rest := content
+	for {
+		start := strings.Index(rest, "[[")
+		if start == -1 {
+			break
+		}
+		rest = rest[start+2:]
+		end := strings.Index(rest, "]]")
+		if end == -1 {
+			break
+		}
+		links = append(links, rest[:end])
+		rest = rest[end+2:]
+	}
+	sort.Strings(links)
+	return links, nil
+}
+
 // Backlinks returns the slugs of all notes that contain a [[wikilink]] to the given title.
 // Matches both [[Title]] and [[slug]] forms.
 func Backlinks(vaultPath, title string) ([]string, error) {
