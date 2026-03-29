@@ -1,7 +1,6 @@
 package notes
 
 import (
-	"bufio"
 	"os"
 	"path/filepath"
 	"sort"
@@ -52,42 +51,14 @@ func bigramSimilarity(a, b string) float64 {
 	return float64(2*intersection) / float64(total)
 }
 
-// parseTags reads the YAML frontmatter of a note file and returns its tags.
+// parseTags returns the tags from a note file at the given path.
 func parseTags(path string) ([]string, error) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	lineNum := 0
-	inFrontmatter := false
-	var tags []string
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		lineNum++
-		if lineNum == 1 && line == "---" {
-			inFrontmatter = true
-			continue
-		}
-		if inFrontmatter && line == "---" {
-			break
-		}
-		if inFrontmatter && strings.HasPrefix(line, "tags:") {
-			tagStr := strings.TrimPrefix(line, "tags:")
-			tagStr = strings.TrimSpace(tagStr)
-			tagStr = strings.Trim(tagStr, "[]")
-			for _, t := range strings.Split(tagStr, ",") {
-				t = strings.TrimSpace(t)
-				if t != "" {
-					tags = append(tags, t)
-				}
-			}
-		}
-	}
-	return tags, scanner.Err()
+	meta, _ := splitNote(string(data))
+	return meta.tags, nil
 }
 
 // List returns all note slugs in the vault, optionally filtered by tag.
@@ -179,4 +150,41 @@ func Search(vaultPath, query string, exact bool) ([]string, error) {
 		slugs[i] = r.slug
 	}
 	return slugs, nil
+}
+
+// Backlinks returns the slugs of all notes that contain a [[wikilink]] to the given title.
+// Matches both [[Title]] and [[slug]] forms.
+func Backlinks(vaultPath, title string) ([]string, error) {
+	slug := Slug(title)
+	targets := []string{"[[" + title + "]]", "[[" + slug + "]]"}
+
+	entries, err := os.ReadDir(vaultPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		noteSlug := strings.TrimSuffix(e.Name(), ".md")
+		if noteSlug == slug {
+			continue // skip the note itself
+		}
+		data, err := os.ReadFile(filepath.Join(vaultPath, e.Name()))
+		if err != nil {
+			continue
+		}
+		content := string(data)
+		for _, target := range targets {
+			if strings.Contains(content, target) {
+				results = append(results, noteSlug)
+				break
+			}
+		}
+	}
+
+	sort.Strings(results)
+	return results, nil
 }
