@@ -1,0 +1,22 @@
+run:
+  go: "1.24"
+
+linters:
+  enable:
+    - errcheck      # unhandled errors (caught our mustCreate issue)
+    - govet         # same as go vet
+    - staticcheck   # broad static analysis
+    - unused        # unexported identifiers that are never used
+    - gosimple      # simplifications the compiler won't enforce
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    # fmt.Print* errors are unrecoverable in a CLI — ignoring is universal Go convention
+    exclude-functions:
+      - fmt.Print
+      - fmt.Println
+      - fmt.Printf
+      - fmt.Fprint
+      - fmt.Fprintln
+      - fmt.Fprintf
